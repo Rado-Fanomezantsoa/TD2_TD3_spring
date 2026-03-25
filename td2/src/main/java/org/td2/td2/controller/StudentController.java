@@ -1,45 +1,43 @@
 package org.td2.td2.controller;
 
-import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.td2.td2.exception.BadRequestException;
 import org.td2.td2.model.Student;
+import org.td2.td2.service.StudentService;
 
-import java.util.ArrayList;
 import java.util.List;
-import java.util.stream.Collectors;
 
 @RestController
+@RequestMapping("/students")
 public class StudentController {
-    private final List<Student> students = new ArrayList<>();
-    @GetMapping("/welcome")
-    public String welcome(@RequestParam("name") String name) {
-        return "Welcome " + name;
+
+    private final StudentService studentService;
+
+    public StudentController(StudentService studentService) {
+        this.studentService = studentService;
     }
 
-    @PostMapping("/students")
-    public String addStudents(@RequestBody List<Student> newStudents) {
-        students.addAll(newStudents);
-        String names = students.stream()
-                .map(s -> s.getFirstName() + " " + s.getLastName())
-                .collect(Collectors.joining(", "));
+    @PostMapping
+    public ResponseEntity<List<Student>> createStudents(@RequestBody List<Student> newStudents) {
+        try {
+            List<Student> allStudents = studentService.addStudents(newStudents);
 
-        return names.isEmpty() ? "Aucun étudiant enregistré" : names;
-    }
+            return ResponseEntity
+                    .status(HttpStatus.CREATED)
+                    .body(allStudents);
 
-    @GetMapping("/students")
-    public ResponseEntity<String> getStudents(@RequestHeader(value = HttpHeaders.ACCEPT, required = false) String acceptHeader) {
-
-        if (acceptHeader != null && acceptHeader.contains("text/plain")) {
-            String names = students.stream()
-                    .map(s -> s.getFirstName() + " " + s.getLastName())
-                    .collect(Collectors.joining(", "));
-
-            return ResponseEntity.ok(names.isEmpty() ? "Aucun étudiant" : names);
+        } catch (BadRequestException e) {
+            throw e;
+        } catch (Exception e) {
+            return ResponseEntity
+                    .status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .build();
         }
-        return ResponseEntity
-                .status(HttpStatus.NOT_ACCEPTABLE)
-                .body("Format non supporté.");
+    }
+    @GetMapping
+    public ResponseEntity<List<Student>> getAllStudents() {
+        return ResponseEntity.ok(studentService.getAllStudents());
     }
 }
